@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <title>Audible Random Picker</title>
 
@@ -145,56 +146,68 @@ window.onload = () => {
 
 csvInput.addEventListener("change", handleCSV);
 
-function handleCSV(event){
+function handleCSV(event) {
 
     const file = event.target.files[0];
 
-    if(!file) return;
+    if (!file) return;
 
-    const reader = new FileReader();
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
 
-    reader.onload = function(e){
+        complete: function(results) {
 
-        const text = e.target.result;
+            books = results.data
+                .filter(book =>
+                    book["Title"] &&
+                    book["Audible Product Id"]
+                )
+                .map(book => {
 
-        const rows = text.split("\n");
+                    const minutes =
+                        Number(book["Length In Minutes"]) || 0;
 
-        const headers =
-            rows[0].split(",").map(h => h.trim());
+                    return {
+                        id: book["Audible Product Id"],
+                        title: book["Title"],
+                        author: book["Authors"] || "Unknown",
+                        genre: book["Categories"] || "Unknown",
+                        hours: (minutes / 60).toFixed(1),
 
-        books = [];
+                        finished:
+                            String(book["Is Finished?"])
+                            .toLowerCase() === "true",
 
-        for(let i=1;i<rows.length;i++){
+                        coverId:
+                            book["Cover Id Large"] ||
+                            book["Cover Id"] ||
+                            ""
+                    };
+                });
 
-            if(!rows[i].trim()) continue;
+            localStorage.setItem(
+                "audibleBooks",
+                JSON.stringify(books)
+            );
 
-            const values = rows[i].split(",");
+            populateGenres();
 
-            const book = {};
+            alert(
+                `${books.length} Libation books imported`
+            );
+        },
 
-            headers.forEach((h,index)=>{
-                book[h] = values[index];
-            });
-
-            books.push(book);
+        error: function(error) {
+            alert(
+                "Error importing CSV: " +
+                error.message
+            );
         }
-
-        localStorage.setItem(
-            "audibleBooks",
-            JSON.stringify(books)
-        );
-
-        populateGenres();
-
-        alert(
-            `${books.length} books imported successfully`
-        );
-    };
-
-    reader.readAsText(file);
+    });
 }
 
-function populateGenres(){
+function populateGenres() {
 
     const genreSelect =
         document.getElementById("genreFilter");
@@ -202,23 +215,37 @@ function populateGenres(){
     genreSelect.innerHTML =
         '<option value="all">All Genres</option>';
 
-    [...new Set(
-        books.map(
-            b => b.genre || "Unknown"
-        )
-    )]
-    .sort()
-    .forEach(genre=>{
+    const genres = new Set();
 
-        const option =
-            document.createElement("option");
+    books.forEach(book => {
 
-        option.value = genre;
-        option.textContent = genre;
+        if (!book.genre) return;
 
-        genreSelect.appendChild(option);
+        book.genre
+            .split(";")
+            .forEach(g => {
 
+                const genre = g.trim();
+
+                if (genre) {
+                    genres.add(genre);
+                }
+            });
     });
+
+    [...genres]
+        .sort()
+        .forEach(genre => {
+
+            const option =
+                document.createElement("option");
+
+            option.value = genre;
+            option.textContent = genre;
+
+            genreSelect.appendChild(option);
+
+        });
 }
 
 function pickBook(){
@@ -234,12 +261,14 @@ function pickBook(){
     const excludeFinished =
         document.getElementById("excludeFinished").checked;
 
-    if(genre !== "all"){
-        filtered =
-            filtered.filter(
-                b => b.genre === genre
-            );
-    }
+    if (genre !== "all") {
+
+    filtered =
+        filtered.filter(book =>
+            book.genre &&
+            book.genre.includes(genre)
+        );
+	}
 
     if(length === "short"){
         filtered =

@@ -102,8 +102,18 @@ select,input[type=file]{
 </select>
 
 <div class="label">
-<input type="checkbox" id="excludeFinished">
+<input 
+	type="checkbox" 
+	id="excludeFinished">
 Exclude Finished Books
+</div>
+
+<div class="label">
+<input
+    type="checkbox"
+    id="liberatedOnly"
+    checked>
+Show Liberated Books Only
 </div>
 
 <button onclick="pickBook()">
@@ -170,21 +180,25 @@ function handleCSV(event) {
                         Number(book["Length In Minutes"]) || 0;
 
                     return {
-                        id: book["Audible Product Id"],
-                        title: book["Title"],
-                        author: book["Authors"] || "Unknown",
-                        genre: book["Categories"] || "Unknown",
-                        hours: (minutes / 60).toFixed(1),
+						id: book["Audible Product Id"],
+						title: book["Title"],
+						author: book["Authors"] || "Unknown",
+						genre: book["Categories"] || "Unknown",
+						hours: (minutes / 60).toFixed(1),
 
-                        finished:
-                            String(book["Is Finished?"])
-                            .toLowerCase() === "true",
+						finished:
+							String(book["Is Finished?"])
+							.toLowerCase() === "true",
 
-                        coverId:
-                            book["Cover Id Large"] ||
-                            book["Cover Id"] ||
-                            ""
-                    };
+						liberated:
+							String(book["Book Liberated Status"])
+							.trim() === "Liberated",
+
+						coverId:
+							book["Cover Id Large"] ||
+							book["Cover Id"] ||
+							""
+					};
                 });
 
             localStorage.setItem(
@@ -261,7 +275,10 @@ function pickBook(){
 
     const excludeFinished =
         document.getElementById("excludeFinished").checked;
-
+	
+	const liberatedOnly =
+		document.getElementById("liberatedOnly").checked;
+		
     if (genre !== "all") {
 
     filtered =
@@ -300,7 +317,14 @@ function pickBook(){
                      .toLowerCase() !== "true"
             );
     }
-
+	
+	if (liberatedOnly){
+		filtered = 
+			filtered.filter(
+				b => b.liberated
+			);
+	}
+	
     if(filtered.length === 0){
 
         alert(

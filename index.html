@@ -172,8 +172,10 @@ function handleCSV(event) {
                 .filter(book =>
                     book["Title"] &&
                     book["Audible Product Id"] &&
-					book["Book Liberated Status"] === "Liberated"
                 )
+			iberated:
+				String(book["Book Liberated Status"])
+				.trim() === "Liberated",
                 .map(book => {
 
                     const minutes =

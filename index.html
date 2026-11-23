@@ -161,7 +161,8 @@ function handleCSV(event) {
             books = results.data
                 .filter(book =>
                     book["Title"] &&
-                    book["Audible Product Id"]
+                    book["Audible Product Id"] &&
+					book["Book Liberated Status"] === "Liberated"
                 )
                 .map(book => {
 

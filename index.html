@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Audible Random Picker</title>
+
+<style>
+:root{
+    --bg:#121212;
+    --card:#1d1d1d;
+    --accent:#ff9900;
+    --text:#ffffff;
+}
+
+body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+}
+
+.container{
+    max-width:500px;
+    margin:auto;
+    padding:20px;
+}
+
+h1{
+    text-align:center;
+}
+
+.card{
+    background:var(--card);
+    border-radius:20px;
+    padding:20px;
+    margin-top:15px;
+}
+
+.cover{
+    width:100%;
+    max-height:450px;
+    object-fit:contain;
+    border-radius:15px;
+    background:#000;
+}
+
+button{
+    width:100%;
+    border:none;
+    border-radius:16px;
+    padding:16px;
+    font-size:18px;
+    font-weight:bold;
+    background:var(--accent);
+    color:black;
+    margin-top:12px;
+}
+
+select,input[type=file]{
+    width:100%;
+    margin-top:10px;
+    padding:12px;
+    border-radius:10px;
+    font-size:16px;
+}
+
+.info{
+    text-align:center;
+}
+
+.label{
+    margin-top:15px;
+    font-weight:bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🎧 Audible Picker</h1>
+
+<div class="card">
+
+<input type="file" id="csvFile" accept=".csv">
+
+<div class="label">Genre Filter</div>
+<select id="genreFilter">
+<option value="all">All Genres</option>
+</select>
+
+<div class="label">Length Filter</div>
+<select id="lengthFilter">
+<option value="all">Any Length</option>
+<option value="short">Under 10 Hours</option>
+<option value="medium">10-20 Hours</option>
+<option value="long">20+ Hours</option>
+</select>
+
+<div class="label">
+<input type="checkbox" id="excludeFinished">
+Exclude Finished Books
+</div>
+
+<button onclick="pickBook()">
+🎲 Pick Random Book
+</button>
+
+</div>
+
+<div id="result" class="card" style="display:none">
+
+<img id="cover" class="cover">
+
+<div class="info">
+<h2 id="title"></h2>
+<h3 id="author"></h3>
+<p id="genre"></p>
+<p id="hours"></p>
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+let books = [];
+
+const csvInput = document.getElementById("csvFile");
+
+window.onload = () => {
+
+    const saved = localStorage.getItem("audibleBooks");
+
+    if(saved){
+        books = JSON.parse(saved);
+        populateGenres();
+    }
+
+};
+
+csvInput.addEventListener("change", handleCSV);
+
+function handleCSV(event){
+
+    const file = event.target.files[0];
+
+    if(!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function(e){
+
+        const text = e.target.result;
+
+        const rows = text.split("\n");
+
+        const headers =
+            rows[0].split(",").map(h => h.trim());
+
+        books = [];
+
+        for(let i=1;i<rows.length;i++){
+
+            if(!rows[i].trim()) continue;
+
+            const values = rows[i].split(",");
+
+            const book = {};
+
+            headers.forEach((h,index)=>{
+                book[h] = values[index];
+            });
+
+            books.push(book);
+        }
+
+        localStorage.setItem(
+            "audibleBooks",
+            JSON.stringify(books)
+        );
+
+        populateGenres();
+
+        alert(
+            `${books.length} books imported successfully`
+        );
+    };
+
+    reader.readAsText(file);
+}
+
+function populateGenres(){
+
+    const genreSelect =
+        document.getElementById("genreFilter");
+
+    genreSelect.innerHTML =
+        '<option value="all">All Genres</option>';
+
+    [...new Set(
+        books.map(
+            b => b.genre || "Unknown"
+        )
+    )]
+    .sort()
+    .forEach(genre=>{
+
+        const option =
+            document.createElement("option");
+
+        option.value = genre;
+        option.textContent = genre;
+
+        genreSelect.appendChild(option);
+
+    });
+}
+
+function pickBook(){
+
+    let filtered = [...books];
+
+    const genre =
+        document.getElementById("genreFilter").value;
+
+    const length =
+        document.getElementById("lengthFilter").value;
+
+    const excludeFinished =
+        document.getElementById("excludeFinished").checked;
+
+    if(genre !== "all"){
+        filtered =
+            filtered.filter(
+                b => b.genre === genre
+            );
+    }
+
+    if(length === "short"){
+        filtered =
+            filtered.filter(
+                b => Number(b.hours) < 10
+            );
+    }
+
+    if(length === "medium"){
+        filtered =
+            filtered.filter(
+                b => Number(b.hours) >= 10 &&
+                     Number(b.hours) <= 20
+            );
+    }
+
+    if(length === "long"){
+        filtered =
+            filtered.filter(
+                b => Number(b.hours) > 20
+            );
+    }
+
+    if(excludeFinished){
+        filtered =
+            filtered.filter(
+                b => String(b.finished)
+                     .toLowerCase() !== "true"
+            );
+    }
+
+    if(filtered.length === 0){
+
+        alert(
+            "No books match your filters."
+        );
+
+        return;
+    }
+
+    const book =
+        filtered[
+            Math.floor(
+                Math.random() * filtered.length
+            )
+        ];
+
+    document.getElementById(
+        "result"
+    ).style.display = "block";
+
+    document.getElementById(
+        "cover"
+    ).src = book.cover;
+
+    document.getElementById(
+        "title"
+    ).textContent = book.title;
+
+    document.getElementById(
+        "author"
+    ).textContent = book.author;
+
+    document.getElementById(
+        "genre"
+    ).textContent =
+        "Genre: " + (book.genre || "Unknown");
+
+    document.getElementById(
+        "hours"
+    ).textContent =
+        "Length: " + (book.hours || "?") +
+        " hours";
+}
+
+</script>
+
+</body>
+</html>
